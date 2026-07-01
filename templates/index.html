@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VidFast Resolver</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d0d0f;
+    color: #e2e2e6;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 16px;
+  }
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  header h1 {
+    font-size: 1.7rem;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    color: #fff;
+  }
+  header h1 span { color: #7c6dfa; }
+  header p { color: #6b6b7a; font-size: 0.85rem; margin-top: 6px; }
+
+  .card {
+    background: #18181c;
+    border: 1px solid #2a2a32;
+    border-radius: 12px;
+    padding: 28px;
+    width: 100%;
+    max-width: 520px;
+  }
+
+  .type-toggle {
+    display: flex;
+    background: #0d0d0f;
+    border-radius: 8px;
+    padding: 4px;
+    margin-bottom: 22px;
+    gap: 4px;
+  }
+  .type-toggle button {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #6b6b7a;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .type-toggle button.active {
+    background: #7c6dfa;
+    color: #fff;
+    font-weight: 600;
+  }
+
+  label {
+    display: block;
+    font-size: 0.78rem;
+    color: #6b6b7a;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+    margin-top: 16px;
+  }
+  input {
+    width: 100%;
+    background: #0d0d0f;
+    border: 1px solid #2a2a32;
+    border-radius: 7px;
+    color: #e2e2e6;
+    font-size: 0.93rem;
+    padding: 10px 13px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus { border-color: #7c6dfa; }
+  input::placeholder { color: #3a3a44; }
+
+  .row { display: flex; gap: 12px; }
+  .row > div { flex: 1; }
+
+  .tv-fields { display: none; }
+  .tv-fields.visible { display: flex; }
+
+  button.resolve-btn {
+    width: 100%;
+    margin-top: 22px;
+    padding: 12px;
+    background: #7c6dfa;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button.resolve-btn:hover { background: #6a5ce8; }
+  button.resolve-btn:disabled { background: #3a3358; color: #6b6b7a; cursor: not-allowed; }
+
+  #status {
+    margin-top: 14px;
+    font-size: 0.82rem;
+    color: #6b6b7a;
+    text-align: center;
+    min-height: 18px;
+  }
+
+  #results { width: 100%; max-width: 520px; margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
+
+  .result-card {
+    background: #18181c;
+    border: 1px solid #2a2a32;
+    border-radius: 10px;
+    padding: 18px;
+  }
+  .result-card .server-name {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #7c6dfa;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+  .result-card .error-msg {
+    color: #e05c5c;
+    font-size: 0.85rem;
+  }
+  .stream-block {
+    background: #0d0d0f;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 0.78rem;
+    color: #a0a0b0;
+    margin-bottom: 10px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    line-height: 1.5;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .stream-block pre { font-family: 'Consolas', monospace; }
+  .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .copy-btn, .open-btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: background 0.15s;
+  }
+  .copy-btn { background: #2a2a32; color: #c0c0cc; }
+  .copy-btn:hover { background: #35353f; }
+  .open-btn { background: #1e3a2f; color: #4ade80; }
+  .open-btn:hover { background: #254d3d; }
+  .referer-row {
+    font-size: 0.75rem;
+    color: #45455a;
+    margin-top: 8px;
+  }
+  .referer-row span { color: #6b6b7a; }
+
+  footer {
+    margin-top: 48px;
+    color: #2e2e3a;
+    font-size: 0.75rem;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VidFast <span>Resolver</span></h1>
+  <p>Extract stream URLs from VidFast embeds</p>
+</header>
+
+<div class="card">
+  <div class="type-toggle">
+    <button class="active" onclick="setType('movie')">Movie</button>
+    <button onclick="setType('tv')">TV Show</button>
+  </div>
+
+  <label>TMDB ID</label>
+  <input type="text" id="tmdb_id" placeholder="e.g. 1399">
+
+  <div class="tv-fields row" id="tv-fields">
+    <div>
+      <label>Season</label>
+      <input type="number" id="season" placeholder="1" min="1">
+    </div>
+    <div>
+      <label>Episode</label>
+      <input type="number" id="episode" placeholder="1" min="1">
+    </div>
+  </div>
+
+  <button class="resolve-btn" id="resolve-btn" onclick="resolve()">Resolve Streams</button>
+  <div id="status"></div>
+</div>
+
+<div id="results"></div>
+
+<footer>vidfast.pro resolver — enc-dec.app backend</footer>
+
+<script>
+let mediaType = 'movie';
+
+function setType(t) {
+  mediaType = t;
+  document.querySelectorAll('.type-toggle button').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && t === 'movie') || (i === 1 && t === 'tv'));
+  });
+  const tvFields = document.getElementById('tv-fields');
+  tvFields.classList.toggle('visible', t === 'tv');
+}
+
+function setStatus(msg, color='#6b6b7a') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.style.color = color;
+}
+
+function copyText(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+function renderResult(r) {
+  const div = document.createElement('div');
+  div.className = 'result-card';
+
+  const name = document.createElement('div');
+  name.className = 'server-name';
+  name.textContent = r.server || 'Server';
+  div.appendChild(name);
+
+  if (r.error) {
+    const err = document.createElement('div');
+    err.className = 'error-msg';
+    err.textContent = '✗ ' + r.error;
+    div.appendChild(err);
+  } else {
+    const dataStr = typeof r.data === 'object' ? JSON.stringify(r.data, null, 2) : String(r.data);
+    const block = document.createElement('div');
+    block.className = 'stream-block';
+    const pre = document.createElement('pre');
+    pre.textContent = dataStr;
+    block.appendChild(pre);
+    div.appendChild(block);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'btn-row';
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'Copy JSON';
+    copyBtn.onclick = () => copyText(dataStr, copyBtn);
+    btnRow.appendChild(copyBtn);
+
+    // Try to find a direct stream URL in the data
+    const urlMatch = dataStr.match(/https?:\/\/[^\s"']+\.m3u8[^\s"']*/);
+    if (urlMatch) {
+      const copyUrl = document.createElement('button');
+      copyUrl.className = 'copy-btn';
+      copyUrl.textContent = 'Copy M3U8';
+      copyUrl.onclick = () => copyText(urlMatch[0], copyUrl);
+      btnRow.appendChild(copyUrl);
+
+      const openBtn = document.createElement('button');
+      openBtn.className = 'open-btn';
+      openBtn.textContent = 'Open URL ↗';
+      openBtn.onclick = () => window.open(urlMatch[0], '_blank');
+      btnRow.appendChild(openBtn);
+    }
+
+    div.appendChild(btnRow);
+
+    if (r.referer) {
+      const ref = document.createElement('div');
+      ref.className = 'referer-row';
+      ref.innerHTML = `Referer: <span>${r.referer}</span>`;
+      div.appendChild(ref);
+    }
+  }
+
+  return div;
+}
+
+async function resolve() {
+  const tmdb_id = document.getElementById('tmdb_id').value.trim();
+  const season = document.getElementById('season').value.trim();
+  const episode = document.getElementById('episode').value.trim();
+
+  if (!tmdb_id) { setStatus('Enter a TMDB ID.', '#e05c5c'); return; }
+  if (mediaType === 'tv' && (!season || !episode)) {
+    setStatus('Enter season and episode.', '#e05c5c'); return;
+  }
+
+  const btn = document.getElementById('resolve-btn');
+  btn.disabled = true;
+  document.getElementById('results').innerHTML = '';
+  setStatus('Fetching page…');
+
+  try {
+    const res = await fetch('/resolve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: mediaType, tmdb_id, season, episode })
+    });
+    const json = await res.json();
+
+    if (json.error) {
+      setStatus('Error: ' + json.error, '#e05c5c');
+    } else {
+      const container = document.getElementById('results');
+      const ok = json.results.filter(r => !r.error).length;
+      const fail = json.results.filter(r => r.error).length;
+      setStatus(`${ok} stream${ok !== 1 ? 's' : ''} resolved${fail ? `, ${fail} failed` : ''}.`, ok > 0 ? '#4ade80' : '#e05c5c');
+      json.results.forEach(r => container.appendChild(renderResult(r)));
+    }
+  } catch (e) {
+    setStatus('Request failed: ' + e.message, '#e05c5c');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') resolve();
+});
+</script>
+</body>
+</html>
